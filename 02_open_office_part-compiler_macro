@@ -1,0 +1,143 @@
+rem  *****  BASIC  *****
+'Part Extractor V2 09/10/10
+'by David Pocknee
+'Based on PhotoAlbum code by Russel Phillips and uses elements of
+'code derived from code in Andrew Pitonyak's excellent book,
+'OpenOffice.org Macros Explained (http://www.pitonyak.org/book/)
+'The author, Russell Phillips, can be contacted at avantman42@users.sourceforge.net
+'It also uses elements from codes by Andrew Pitonyak from 'http://documentation.openoffice.org/HOW_TO/various_topics/AndrewMacro.odt
+
+
+Sub Extractor
+
+	dim oSlides as object, oAlbum as object
+	dim sDir as string, sFile as string
+rem define variables
+dim document   as object
+dim dispatcher as object
+
+rem ----------------------------------------------------------------------
+rem get access to the document
+document   = ThisComponent.CurrentController.Frame
+dispatcher = createUnoService("com.sun.star.frame.DispatchHelper")
+
+	'Get directory with graphics to be imported
+	sDir = rppChooseDirectory (False, True)
+	if sDir = "" then
+		'User cancelled directory dialogue box
+		exit sub
+	end if
+
+'Get first file in directory
+	sFile = dir(sDir)
+	'Go through all files in directory
+	While Not (sFile = "")
+		if rppIsGraphicFile (sFile) then
+
+oDoc = ThisComponent
+  ' Create a table and attach/insert it at the current cursor position
+  vViewCursor = oDoc.getCurrentController().getViewCursor()
+  oTable = oDoc.createInstance("com.sun.star.text.TextTable")
+  oTable.initialize(1, 1)
+            
+  REM Now insert the text table at the end of the document.
+  oDoc.getText.insertTextContent( vViewCursor, oTable, False ) 
+  Dim x 'represents each BorderLine  
+  Dim v 'represents the TableBorder Object as a whole
+  v = oTable.TableBorder
+  x = v.TopLine        : x.OuterLineWidth = 0 : v.TopLine = x
+  x = v.LeftLine       : x.OuterLineWidth = 0 : v.LeftLine = x
+  x = v.RightLine      : x.OuterLineWidth = 0 : v.RightLine = x
+  x = v.TopLine        : x.OuterLineWidth = 0 : v.TopLine = x
+  x = v.VerticalLine   : x.OuterLineWidth = 0 : v.VerticalLine = x
+  x = v.HorizontalLine : x.OuterLineWidth = 0 : v.HorizontalLine = x
+  x = v.BottomLine     : x.OuterLineWidth = 0 : v.BottomLine = x
+
+  oTable.TableBorder = v
+
+
+  oImage = oDoc.createInstance("com.sun.star.text.GraphicObject")
+  With oImage
+     .GraphicURL = ConvertToURL(sDir+sFile)
+     .AnchorType = com.sun.star.text.TextContentAnchorType.AS_CHARACTER
+      End With
+
+  ' create a text cursor in the left cell
+  oCursor = oTable.getCellByPosition(0,0).createTextCursor()
+
+
+oTable.getCellByPosition(0,0).insertTextContent(oCursor,oImage,False)  
+
+		end if
+		'Get next file
+		sFile = dir
+	Wend
+End Sub
+
+Function rppIsGraphicFile (FileName as string) as Boolean
+'Function to determine if file is a graphic file
+'Returns True if file is graphics file, False if not
+	dim asGraphicExt
+	dim sLFile as string
+	dim iExt as integer
+
+	'asGraphicExt is array of graphics file extensions
+	asGraphicExt = Array (".bmp", ".dxf", ".emf", ".eps", ".gif", ".jpg", ".jpeg", ".met", _
+		".pbm", ".pcd", ".pct", ".pcx", ".pgm", ".png", ".ppm", ".psd", ".ras", ".sgf", _
+		".sgv", ".svm", ".tga", ".tif", ".tiff", ".wmf", ".xbm", ".xpm")
+
+	'Initialise return value to False
+	rppIsGraphicFile = False
+	
+	'Convert FileName to lower-case, to make comparison simpler
+	sLFile = LCase (FileName)
+
+	'Loop through asGraphicExt
+	for iExt = LBound (asGraphicExt) to UBound (asGraphicExt)
+		'Check file extension against element iExt of asGraphicExt
+		If Right (sLFile, Len (asGraphicExt (iExt))) = asGraphicExt (iExt) then
+			'Match: file is graphic file. Set return value to True
+			rppIsGraphicFile = True
+		end if
+	next iExt
+	
+End Function
+
+Function rppChooseDirectory (asURL as Boolean, incSeperator as Boolean) as string
+'Function to allow user to choose a directory via a dialogue box
+'Returns path to directory, or empty string if user cancelled
+'If asURL is true, returns as a URL
+'If incSeperator is true, includes seperator (\ or /) at end of string
+
+	dim dlgDirectory as Object
+	dim sReturn as string
+
+	'Set up FolderPicker object & initialise return value
+	dlgDirectory = CreateUnoService ("com.sun.star.ui.dialogs.FolderPicker")
+	sReturn = ""
+
+	'Display dialogue box
+	if dlgDirectory.Execute () = 1 then
+		'User did not cancel dialogue box. Get path to directory
+		sReturn = CStr (dlgDirectory.GetDirectory ())
+		if asURL and incSeperator then
+			'Append / at end if not already present
+			if not (Right (sReturn, 1) = "/") then
+				sReturn = sReturn & "/"
+			end if
+		elseif not (asURL) then
+			'Convert sReturn from URL format
+			sReturn = ConvertFromURL (sReturn)
+			'Append seperator if not already present
+			if incSeperator then
+				if not (Right (sReturn, 1) = GetPathSeparator ()) then
+					sReturn = sReturn & GetPathSeparator ()
+				end if
+			end if
+		end if
+	end if
+	
+	'Set function return value
+	rppChooseDirectory = sReturn
+
+End Function
